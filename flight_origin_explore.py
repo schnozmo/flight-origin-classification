@@ -12,8 +12,11 @@ input_file = 'dist-alt-hdg.to20181229.csv'
 
 time_and_flt = np.genfromtxt(input_file, delimiter=',', usecols=(0,1), dtype='str')
 rawdata = np.genfromtxt(input_file, delimiter=',', usecols=(2,3,4))
+
 mm_scaler = preprocessing.MinMaxScaler()
 alldata = mm_scaler.fit_transform(rawdata)
+
+
 alldata_len = len(alldata)
 
 train_pct = 1.
