@@ -1,6 +1,6 @@
 #!/usr/bin/python -u
 
-import sys, math, subprocess, re, os, json, random
+import sys, math, subprocess, re, os, json
 import datetime as dt
 
 # <code>KEWR 200151Z 33011KT 10SM OVC250 00/M16 A3060 RMK AO2 SLP362 T00001156</code><br/>
@@ -34,7 +34,7 @@ def is_running():
 
 pid = is_running()
 if pid > 0:
-	print("Running as", pid)
+	print("Running as " + pid)
 	sys.exit()
 
 cmd = "/usr/lib/piaware/helpers/faup1090 --net-bo-ipaddr localhost --net-bo-port 30005 --stdout --lat 40.368 --lon -74.192"
@@ -59,6 +59,8 @@ recent_first = []
 last_clock = 0
 my_lat = 40.368
 my_lon = -74.192
+last_coming_here = ""
+nrecs = 0
 widebodies = ['A388', 'B748', 'B744', 'B742', 'B741', 'B772', 'B773', 'B77L', 'B77W', 
               'B788', 'B789', 'A346', 'A330', 'A343', 'A345', 'A333', 'A332', 'A359', 
               'B764', 'B763', 'A306', 'B753', 'MD11']
@@ -95,7 +97,7 @@ def send_notification(settings):
 
 	print("Sending notification for", settings['message'])
 	cmd = "wget --post-data '" + form_str + "' https://api.pushover.net/1/messages.json"
-	print("wget command", cmd)
+	print("wget command: " + cmd)
 	p = subprocess.Popen(cmd, shell=True, stdout = subprocess.PIPE)
 	p.stdout.read()
 
@@ -173,7 +175,7 @@ def updateFlight(r, h):
 	flights[h]['msgs'] += 1
 	flights[h]['last_time'] = int(r['clock'])
 	if 'ident' in r.keys() and flights[h]['ident'] != "" and flights[h]['ident'] != r['ident']:
-		print "IDENT MISMATCH - (curr vs flights) - #", r['ident'], "# vs #", flights[h]['ident'], "#"
+		print("IDENT MISMATCH - (curr vs flights) - #"+ r['ident'] + "# vs #" + flights[h]['ident'] + "#")
 		flights[h]['ident'] = r['ident']
 	elif 'ident' in r.keys() and flights[h]['ident'] == "":
 		flights[h]['ident'] = r['ident']
@@ -218,27 +220,21 @@ def updateFlight(r, h):
 
 def isComingHere(h):
 	if flights[h]['bearing'] == 361 or flights[h]['track'] == 361:
-		return 0
+		return False
 	elif flights[h]['distance'] > 3 or flights[h]['alt'] > 14000:
-		return 0
+		return False
 	print(flights[h]['distance'], flights[h]['alt'], flights[h]['ident'], get_aircraft(h))
 	rev_bearing = (flights[h]['bearing'] + 180) % 360
 	if abs(rev_bearing - flights[h]['track']) < 180:
-		return 1
+		return True
 	else:
-		return 0
+		return False
 
 def isComingHereLow(h):
-	if flights[h]['bearing'] == 361 or flights[h]['track'] == 361:
-		return 0
-	elif flights[h]['distance'] > 3 or flights[h]['alt'] > 8000:
-		return 0
-	print(flights[h]['distance'], flights[h]['alt'], flights[h]['ident'], get_aircraft(h))
-	rev_bearing = (flights[h]['bearing'] + 180) % 360
-	if abs(rev_bearing - flights[h]['track']) < 180:
-		return 1
+	if isComingHere(h) and flights[h]['alt'] <= 8000:
+		return True
 	else:
-		return 0
+		return False
 
 def isNear(h):
 	if flights[h]['distance'] > 6 or flights[h]['alt'] > 16000:
@@ -250,10 +246,6 @@ def cleanFlights():
 	for k in flights.keys():
 		if last_clock - flights[k]['last_time'] > 900:
 			flights.pop(k, "blah")
-
-last_coming_here = ""
-nrecs = 0
-
 
 #for line in sys.stdin:
 for line in iter(p.stdout.readline, ""):
@@ -319,15 +311,7 @@ for line in iter(p.stdout.readline, ""):
 			if len(recent_first) > 10:
 				recent_first.pop()
 
-	if isComingHereLow(hexid) == 1 and last_coming_here != hexid:
-		#file = "flt-" + flights[hexid]['ident']
-		#file = file + "-" + str(flights[hexid]['alt'])
-		#file = file + "-" + get_aircraft(hexid)
-		#file = file + "-" + str(flights[hexid]['last_time'])
-		#curl_loc = "http://192.168.1.10:8888/" + file
-		#retval = wget.download(curl_loc)
-		#unlink(file)
-
+	if isComingHereLow(hexid) and last_coming_here != hexid:
 		# push notification
 		a_type = get_aircraft(hexid)
 		#if a_type in widebodies:
@@ -341,21 +325,18 @@ for line in iter(p.stdout.readline, ""):
 			notif_settings['url_title'] = 'Flightaware details'
 		send_notification(notif_settings)
 
-		print
-		print hexid, "is coming this way!!!!"
-		print "   ", flights[hexid]
-		print
+		print("\n" + hexid + " is coming this way!!!!\n    " + flights[hexid])
 		
 		last_coming_here = hexid
 	nrecs += 1
 	if nrecs % 50 == 0:
 		sys.stdout.flush()
 		if nrecs % 500 == 0:
-			print "flights before cleaning: ", len(flights.keys())
+			print("flights before cleaning: " + len(flights.keys()))
 			cleanFlights()
-			print "flights after cleaning:  ", len(flights.keys())
-			print "flights in near:         ", len(near.keys())
-			print "flights in recent near:  ", recent_near
+			print("flights after cleaning:  " + len(flights.keys()))
+			print("flights in near:         " + len(near.keys()))
+			print("flights in recent near:  " + recent_near)
 				
 			# read metar
 			airport, metar_time, wind_dir, wind_sust, wind_gust = get_wind('/home/pi/flightaware/kewr_metar.txt')
