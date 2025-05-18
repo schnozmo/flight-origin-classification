@@ -349,7 +349,7 @@ while True:
 		
 		if hexid not in recent_first:
 			app_fh.write("%s,%s,%s,%s,%s,%f,%f,%f,%f,%.1f,%.1f,%d,%d,%d\n" % (dt.datetime.now().strftime("%Y%m%d.%H%M%S"), hexid, 
-                                                                        flights[hexid]['ident'], flights[hexid]['ident'][:3], flights[h]['ac_type'],
+                                                                        flights[hexid]['ident'], flights[hexid]['ident'][:3], flights[hexid]['ac_type'],
                                                                         flights[hexid]['last_lat'], flights[hexid]['last_lon'],
                                                                         flights[hexid]['alt'], flights[hexid]['distance'],
                                                                         flights[hexid]['track'], flights[hexid]['speed'],
